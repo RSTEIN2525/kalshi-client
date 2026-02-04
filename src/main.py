@@ -1,4 +1,5 @@
 from kalshi import KalshiClient, Series
+from utils import pydantic_model_to_dataframe
 from dotenv import load_dotenv
 import os
 
@@ -17,8 +18,14 @@ def main():
 
     # Pull Series
     series_data: Series = kc.get_series("KXHIGHNY")
+
+    # Pull Markets
+    markets = kc.get_open_markets_general(limit=3)
+
+    # Convert to DF
+    formatted_markets = pydantic_model_to_dataframe(markets.markets)
+    print(formatted_markets)
     
-    print(series_data.category)
 
 
 if __name__ == '__main__':
