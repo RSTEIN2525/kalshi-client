@@ -20,7 +20,7 @@ def main():
     series_data: Series = kc.get_series("KXHIGHNY")
 
     # Pull Markets
-    markets = kc.get_open_markets_general(limit=3)
+    markets = kc.get_open_markets_general(limit=1)
 
     # Convert to DF
     formatted_markets = pydantic_model_to_dataframe(markets.markets)

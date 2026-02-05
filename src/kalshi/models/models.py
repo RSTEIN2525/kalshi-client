@@ -6,16 +6,18 @@ class Series(BaseModel):
     frequency: str                                       # How often events occur ("daily", "weekly", "monthly")
     title: str                                           # Human-readable name
     category: str                                        # Market category (e.g., "Economics", "Weather", "Politics")
-    tags: list[str]                                      # Keywords for filtering/search
-    settlement_sources: list[dict[str, str]]             # Where official data comes from to settle markets
+    tags: Optional[list[str]] = None                     # Keywords for filtering/search
+    settlement_sources: Optional[list[dict[str, str]]] = None  # Where official data comes from to settle markets
     contract_url: str                                    # Link to contract details
     fee_type: str                                        # Fee structure type (typically "quadratic")
-    fee_multiplier: int                                  # Multiplier for fee calculation
+    fee_multiplier: float                                # Multiplier for fee calculation
     additional_prohibitions: Optional[list[str]] = None  # Extra trading restrictions
     product_metadata: Optional[dict] = None              # Custom metadata specific to this series
     volume: Optional[int] = None                         # Total trading volume (in cents)
     volume_fp: Optional[str] = None                      # Trading volume as decimal (in dollars)
 
+class SeriesList(BaseModel):
+    series: list[Series]
 
 class PriceRange(BaseModel):
     start: str                                           # Start of price range
@@ -101,4 +103,8 @@ class Market(BaseModel):
 class MarketsResponse(BaseModel):
     markets: list[Market]                                # List of markets
     cursor: str                                          # Pagination cursor for next page
+
+
+class TagList(BaseModel):
+    tags: dict[str, Optional[list[str]]]  # Tags organized by category, None if no tags for that category
 

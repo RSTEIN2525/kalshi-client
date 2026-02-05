@@ -1,0 +1,1 @@
+DEFAULT_TIMEFRAME = 60 # Options are in num_minutes (1min, 60min, 1440min = 1D)
