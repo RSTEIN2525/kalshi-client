@@ -97,12 +97,100 @@ class Market(BaseModel):
     mve_collection_ticker: str                           # MVE collection identifier
     mve_selected_legs: list[MVESelectedLeg]              # Selected legs for multi-variable events
     primary_participant_key: Optional[str] = None        # Primary participant identifier
-    is_provisional: bool                                 # Whether market is provisional
+    is_provisional: Optional[bool] = None               # Whether market is provisional
 
 
 class MarketsResponse(BaseModel):
     markets: list[Market]                                # List of markets
     cursor: str                                          # Pagination cursor for next page
+
+
+class Event(BaseModel):
+    event_ticker: str                                        # Unique event identifier (e.g., "KXELONMARS-99")
+    series_ticker: str                                       # Parent series identifier
+    title: str                                               # Full title of the event
+    sub_title: str                                           # Shortened descriptive title
+    collateral_return_type: str                              # How collateral is returned (e.g., "binary")
+    mutually_exclusive: bool                                 # If true, only one market can resolve "yes"
+    category: str                                            # Event category (deprecated, use series-level)
+    available_on_brokers: bool                               # Whether available to trade on brokers
+    product_metadata: Optional[dict] = None                  # Additional metadata for the event
+    strike_date: Optional[str] = None                        # Date strike (mutually exclusive with strike_period)
+    strike_period: Optional[str] = None                      # Period strike e.g., "week", "month" (mutually exclusive with strike_date)
+    markets: Optional[list[Market]] = None                   # Nested markets (only with with_nested_markets=true)
+
+
+class Milestone(BaseModel):
+    id: str                                                  # Unique identifier for the milestone
+    category: str                                            # Category of the milestone
+    type: str                                                # Type of the milestone
+    start_date: str                                          # Start date of the milestone
+    related_event_tickers: list[str]                         # Event tickers related to this milestone
+    title: str                                               # Title of the milestone
+    notification_message: str                                # Notification message for the milestone
+    details: dict                                            # Additional details about the milestone
+    primary_event_tickers: list[str]                         # Event tickers directly related to outcome
+    last_updated_ts: str                                     # Last time this milestone was updated
+    end_date: Optional[str] = None                           # End date of the milestone, if any
+    source_id: Optional[str] = None                          # Source id of milestone if available
+
+
+class EventResponse(BaseModel):
+    event: Event                                             # Data for the event
+    markets: list[Market]                                    # Markets in this event (deprecated, use event.markets with with_nested_markets=true)
+
+
+class EventsResponse(BaseModel):
+    cursor: str                                              # Pagination cursor for next page
+    events: list[Event]                                      # List of events
+    milestones: Optional[list[Milestone]] = None             # Associated milestones
+
+
+class CandlestickOHLC(BaseModel):
+    open: int                                                # Price at start of period (cents)
+    open_dollars: str                                        # Price at start of period (dollars)
+    low: int                                                 # Lowest price during period (cents)
+    low_dollars: str                                         # Lowest price during period (dollars)
+    high: int                                                # Highest price during period (cents)
+    high_dollars: str                                        # Highest price during period (dollars)
+    close: int                                               # Price at end of period (cents)
+    close_dollars: str                                       # Price at end of period (dollars)
+
+
+class CandlestickPriceOHLC(BaseModel):
+    open: Optional[int] = None                               # First traded price during period (cents)
+    open_dollars: Optional[str] = None                       # First traded price during period (dollars)
+    low: Optional[int] = None                                # Lowest traded price during period (cents)
+    low_dollars: Optional[str] = None                        # Lowest traded price during period (dollars)
+    high: Optional[int] = None                               # Highest traded price during period (cents)
+    high_dollars: Optional[str] = None                       # Highest traded price during period (dollars)
+    close: Optional[int] = None                              # Last traded price during period (cents)
+    close_dollars: Optional[str] = None                      # Last traded price during period (dollars)
+    mean: Optional[int] = None                               # Mean traded price during period (cents)
+    mean_dollars: Optional[str] = None                       # Mean traded price during period (dollars)
+    previous: Optional[int] = None                           # Last traded price before period (cents)
+    previous_dollars: Optional[str] = None                   # Last traded price before period (dollars)
+    min: Optional[int] = None                                # Min close price of any market during period (cents)
+    min_dollars: Optional[str] = None                        # Min close price of any market during period (dollars)
+    max: Optional[int] = None                                # Max close price of any market during period (cents)
+    max_dollars: Optional[str] = None                        # Max close price of any market during period (dollars)
+
+
+class Candlestick(BaseModel):
+    end_period_ts: int                                       # Unix timestamp for inclusive end of period
+    yes_bid: CandlestickOHLC                                 # OHLC data for YES buy offers
+    yes_ask: CandlestickOHLC                                 # OHLC data for YES sell offers
+    price: CandlestickPriceOHLC                              # OHLC+ data for traded YES contract prices
+    volume: int                                              # Contracts bought during period
+    volume_fp: str                                           # Contracts bought during period (string)
+    open_interest: int                                       # Contracts bought by end of period
+    open_interest_fp: str                                    # Contracts bought by end of period (string)
+
+
+class EventCandlesticksResponse(BaseModel):
+    market_tickers: list[str]                                # Market tickers in the event
+    market_candlesticks: list[list[Candlestick]]             # Candlestick arrays, one per market
+    adjusted_end_ts: int                                     # Adjusted end timestamp if request exceeded max
 
 
 class TagList(BaseModel):

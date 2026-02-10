@@ -1,7 +1,7 @@
 import requests
-from .models import Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList
+from .models import Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList,EventsResponse, Event, EventResponse,  Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
 from ..trading_constants import DEFAULT_TIMEFRAME
-from ..utils import pydantic_model_to_dataframe
+from ..utils import pydantic_model_to_dataframe, iso_to_unix, get_end_ts, get_start_ts
 
 '''
 KALSHI Semantics: Series v.s. Event v.s. Markets
@@ -22,9 +22,10 @@ Markets:
     "Will it be 80°F or higher?"
 '''
 
+
 class KalshiClient:
 
-    API_KEY:str
+    API_KEY: str
 
     def __init__(self, API_KEY):
         self.API_KEY = API_KEY
@@ -39,10 +40,9 @@ class KalshiClient:
         tags = TagList(**data)
 
         return tags
+    
+    def get_series(self, series_ticker: str, include_volume=True) -> Series:
 
-
-    def get_series(self, series_ticker:str, include_volume=True) -> Series:
-        
         # Insert Series into Base URL Format
         url = f"https://api.elections.kalshi.com/trade-api/v2/series/{series_ticker}"
 
@@ -51,14 +51,14 @@ class KalshiClient:
         series_data = response.json()
 
         series_data = series_data['series']  # Remove Outer Nesting
-        
+
         # Unpack into Pydantic Model
         series = Series(**series_data)
 
         return series
-    
+
     def get_series_list(self, category=None, tags=None, include_product_metadata=False, include_volume=True):
-        
+
         params = {}
 
         params["include_volume"] = include_volume
@@ -66,7 +66,7 @@ class KalshiClient:
 
         if category:
             params["category"] = category
-        
+
         if tags:
             params["tags"] = tags
 
@@ -79,8 +79,8 @@ class KalshiClient:
         series = SeriesList(**data)
 
         return series
-    
-    def get_open_markets_general(self, limit = 100, status = "open") -> MarketsResponse:
+
+    def get_open_markets_general(self, limit=100, status="open") -> MarketsResponse:
 
         # Join URL params after first w/ &
         url = f"https://api.elections.kalshi.com/trade-api/v2/markets?limit={limit}&status={status}"
@@ -93,9 +93,9 @@ class KalshiClient:
         markets_response = MarketsResponse(**response_data)
 
         return markets_response
-    
-    def get_open_markets_from_series_ticker(self, series_ticker,  limit = 1000, status = "open"):
-         # Join URL params after first w/ &
+
+    def get_markets_from_series_ticker(self, series_ticker,  limit=1000, status="open"):
+        # Join URL params after first w/ &
         url = f"https://api.elections.kalshi.com/trade-api/v2/markets?limit={limit}&status={status}"
 
         # Fetch and parse to JSON
@@ -108,10 +108,10 @@ class KalshiClient:
         markets_response = MarketsResponse(**response_data)
 
         return markets_response
-    
+
     def get_single_market_from_market_ticker(self, market_ticker) -> Market:
-        
-        url = "https://api.elections.kalshi.com/trade-api/v2/markets/{market_ticker}"
+
+        url = f"https://api.elections.kalshi.com/trade-api/v2/markets/{market_ticker}"
 
         # Pull
         response = requests.get(url)
@@ -123,9 +123,8 @@ class KalshiClient:
         market = Market(**data)
 
         return market
-    
 
-    def get_market_candle_sticks(self, series:Series, market:Market, period_interval, include_latest_before_start=True):
+    def get_market_candle_sticks(self, series: Series, market: Market, period_interval=DEFAULT_TIMEFRAME, include_latest_before_start=True):
         '''
         @params
         series_ticker: Series ticker - the series that contains the target market
@@ -134,30 +133,118 @@ class KalshiClient:
         end_ts: End timestamp (Unix timestamp). Candlesticks will include those ending on or before this time.
         period_interval: Time period length of each candlestick in minutes. Valid values are 1 (1 minute), 60 (1 hour), or 1440 (1 day).
         included_latest_before_start: In cur candle(not closed) append a final synthetic candle to series "imagining" current price as a 'close' for cur
-        
+
         '''
 
-        # Extract URL Parameters
-        series_ticker = series.ticker
-        market_ticker = market.ticker
+        # Extract URL Parameters (Market, Series may not have TICKER)
+        series_ticker = getattr(series, 'ticker', None)
+        market_ticker = getattr(market, 'ticker', None)
 
-        url = "https://api.elections.kalshi.com/trade-api/v2/series/{series_ticker}}/markets/{market_ticker}/candlesticks"
+        if not series_ticker or not market_ticker:
+            print(
+                f"Skipping Series-{series_ticker if series_ticker is not None else "DNE"} : Market-{market_ticker if market_ticker is not None else "DNE"}")
+            return None
+
+        url = f"https://api.elections.kalshi.com/trade-api/v2/series/{series_ticker}/markets/{market_ticker}/candlesticks"
 
         response = requests.get(url, params={
-            "start_ts": market.open,
-            "end_ts": market.close,
+            "start_ts": iso_to_unix(market.open_time),
+            "end_ts": iso_to_unix(market.close_time),
             "period_interval": period_interval,
             "include_latest_before_start": include_latest_before_start
         })
 
         parsed = response.json()
+        print(parsed)
 
+    def get_events(self, limit=100, status="open", series_ticker=None, with_milestones=True) -> EventsResponse:
+        '''Batch Introduction to Event Data: Nothing on Volume, Inner Markets, ...'''
 
+        url = f"https://api.elections.kalshi.com/trade-api/v2/events?limit={limit}"
 
+        response = requests.get(url,params={
+            "status" : status,
+            "series_ticker": series_ticker,
+            "with_milestones": with_milestones
+        })
+
+        raw =  response.json()
+
+        events = EventsResponse(**raw)
+
+        return events
+    
+    def get_event(self, event_ticker) -> EventResponse:
+        '''More Specific Single Event -> All Markets Detailed Data'''
+
+        with_nested_markets=True
+
+        url = f"https://api.elections.kalshi.com/trade-api/v2/events/{event_ticker}"
+        
+        response = requests.get(url, params={
+            "with_nested_markets": with_nested_markets
+        })
+
+        raw = response.json()
+
+        event = EventResponse(**raw)
+
+        return event
+    
+
+    def get_event_candle_sticks(self, event:Event, period_interval= DEFAULT_TIMEFRAME):
+
+        series_ticker = event.series_ticker
+        event_ticker = event.event_ticker
+
+        start_ts = get_start_ts(event.markets)
+        end_ts = get_end_ts(event.markets)
+
+        url = f"https://api.elections.kalshi.com/trade-api/v2/series/{series_ticker}/events/{event_ticker}/candlesticks"
+
+        response = requests.get(url, params={
+            "start_ts" : start_ts,
+            "end_ts" : end_ts,
+            "period_interval" : period_interval 
+        })
+
+        raw = response.json()
+
+        candles = EventCandlesticksResponse(**raw)
+
+        return candles
+
+    
 
 
 if __name__ == '__main__':
     kc = KalshiClient("fake")
-    series_list = kc.get_series_list()
-    df = pydantic_model_to_dataframe(series_list.series)
+    # series_list = kc.get_series_list()
+
+    # df = pydantic_model_to_dataframe(series_list.series)
+    # df = df.sort_values(by='volume', ascending=False)
+    # print(df)
+
+    events = kc.get_events(limit=10)
+    df = pydantic_model_to_dataframe(events.events)
     print(df)
+
+
+
+    
+
+
+
+    # df = pydantic_model_to_dataframe(markets.markets)
+    # df.sort_values(by='volume')
+
+    # print(df)
+
+
+
+    # for market in markets.markets:
+
+    #     # open = getattr(market, "open_time", "DONT HAVE")
+    #     # print(open)
+
+    #     candle_sticks = kc.get_market_candle_sticks(series, market)
