@@ -89,13 +89,13 @@ class Market(BaseModel):
     settlement_ts: Optional[str] = None                  # ISO 8601 timestamp of settlement
     fee_waiver_expiration_time: Optional[str] = None     # ISO 8601 timestamp when fee waiver expires
     early_close_condition: Optional[str] = None          # Condition for early close
-    strike_type: str                                     # Type of strike (e.g., "greater", "less")
+    strike_type: Optional[str] = None                    # Type of strike (e.g., "greater", "less")
     floor_strike: Optional[int] = None                   # Floor strike value
     cap_strike: Optional[int] = None                     # Cap strike value
     functional_strike: Optional[str] = None              # Functional strike description
-    custom_strike: dict                                  # Custom strike configuration
-    mve_collection_ticker: str                           # MVE collection identifier
-    mve_selected_legs: list[MVESelectedLeg]              # Selected legs for multi-variable events
+    custom_strike: Optional[dict] = None                 # Custom strike configuration
+    mve_collection_ticker: Optional[str] = None          # MVE collection identifier
+    mve_selected_legs: Optional[list[MVESelectedLeg]] = None  # Selected legs for multi-variable events
     primary_participant_key: Optional[str] = None        # Primary participant identifier
     is_provisional: Optional[bool] = None               # Whether market is provisional
 
@@ -196,3 +196,8 @@ class EventCandlesticksResponse(BaseModel):
 class TagList(BaseModel):
     tags: dict[str, Optional[list[str]]]  # Tags organized by category, None if no tags for that category
 
+class MarketCandlestickResponse(BaseModel):
+    ticker: str
+    candlesticks: list[Candlestick]
+
+    

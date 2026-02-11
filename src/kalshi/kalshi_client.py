@@ -1,7 +1,9 @@
 import requests
-from .models import Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList,EventsResponse, Event, EventResponse,  Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
+from .models import MarketCandlestickResponse, Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList,EventsResponse, Event, EventResponse,  Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
 from ..trading_constants import DEFAULT_TIMEFRAME
 from ..utils import pydantic_model_to_dataframe, iso_to_unix, get_end_ts, get_start_ts
+import pandas as pd
+import pandas_ta as ta
 
 '''
 KALSHI Semantics: Series v.s. Event v.s. Markets
@@ -57,7 +59,7 @@ class KalshiClient:
 
         return series
 
-    def get_series_list(self, category=None, tags=None, include_product_metadata=False, include_volume=True):
+    def get_series_list(self, category=None, tags=None, include_product_metadata=False, include_volume=True) -> SeriesList:
 
         params = {}
 
@@ -94,7 +96,7 @@ class KalshiClient:
 
         return markets_response
 
-    def get_markets_from_series_ticker(self, series_ticker,  limit=1000, status="open"):
+    def get_markets_from_series_ticker(self, series_ticker,  limit=1000, status="open") -> MarketsResponse:
         # Join URL params after first w/ &
         url = f"https://api.elections.kalshi.com/trade-api/v2/markets?limit={limit}&status={status}"
 
@@ -124,7 +126,7 @@ class KalshiClient:
 
         return market
 
-    def get_market_candle_sticks(self, series: Series, market: Market, period_interval=DEFAULT_TIMEFRAME, include_latest_before_start=True):
+    def get_market_candle_sticks(self, series: Series, market: Market, period_interval=DEFAULT_TIMEFRAME, include_latest_before_start=True)->MarketCandlestickResponse:
         '''
         @params
         series_ticker: Series ticker - the series that contains the target market
@@ -149,13 +151,14 @@ class KalshiClient:
 
         response = requests.get(url, params={
             "start_ts": iso_to_unix(market.open_time),
-            "end_ts": iso_to_unix(market.close_time),
+            "end_ts": get_end_ts(),
             "period_interval": period_interval,
             "include_latest_before_start": include_latest_before_start
         })
 
-        parsed = response.json()
-        print(parsed)
+        raw = response.json()
+       
+        return MarketCandlestickResponse(**raw)
 
     def get_events(self, limit=100, status="open", series_ticker=None, with_milestones=True) -> EventsResponse:
         '''Batch Introduction to Event Data: Nothing on Volume, Inner Markets, ...'''
@@ -192,13 +195,13 @@ class KalshiClient:
         return event
     
 
-    def get_event_candle_sticks(self, event:Event, period_interval= DEFAULT_TIMEFRAME):
+    def get_event_candle_sticks(self, event:Event, period_interval= DEFAULT_TIMEFRAME) -> EventCandlesticksResponse:
 
         series_ticker = event.series_ticker
         event_ticker = event.event_ticker
 
         start_ts = get_start_ts(event.markets)
-        end_ts = get_end_ts(event.markets)
+        end_ts = get_end_ts()
 
         url = f"https://api.elections.kalshi.com/trade-api/v2/series/{series_ticker}/events/{event_ticker}/candlesticks"
 
@@ -225,26 +228,25 @@ if __name__ == '__main__':
     # df = df.sort_values(by='volume', ascending=False)
     # print(df)
 
-    events = kc.get_events(limit=10)
-    df = pydantic_model_to_dataframe(events.events)
-    print(df)
-
-
-
-    
-
-
-
-    # df = pydantic_model_to_dataframe(markets.markets)
-    # df.sort_values(by='volume')
-
+    # events = kc.get_events(limit=10)
+    # df = pydantic_model_to_dataframe(events.events)
     # print(df)
 
+    # KXELONMARS : Will Elon Musk visit Mars in his lifetime?
 
+    event_response: EventResponse = kc.get_event("KXELONMARS-99")
 
-    # for market in markets.markets:
+    event: Event = event_response.event
+    candle_sticks:EventCandlesticksResponse = kc.get_event_candle_sticks(event)
+    
+    series = kc.get_series(event.series_ticker)
 
-    #     # open = getattr(market, "open_time", "DONT HAVE")
-    #     # print(open)
+    first_market:Event = event.markets[0]
+    
+    candlesticks:MarketCandlestickResponse = kc.get_market_candle_sticks(series, first_market)
+    candlesticks:list[Candlestick] = candlesticks.candlesticks
+    df = pydantic_model_to_dataframe(candlesticks)
+    df.sort_values(by= "end_period_ts", ascending= True )
 
-    #     candle_sticks = kc.get_market_candle_sticks(series, market)
+    print(df)
+  

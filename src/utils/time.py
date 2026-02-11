@@ -11,6 +11,10 @@ def get_start_ts(markets: list[Market]) -> int:
     return int(min(market_start_times).timestamp())
 
 
-def get_end_ts(markets: list[Market]) -> int:
-     market_end_times   = [datetime.fromisoformat(market.close_time.replace("Z", "+00:00")) for market in markets]
-     return int(max(market_end_times).timestamp())
+# def get_end_ts(markets: list[Market]) -> int:
+#      market_end_times   = [datetime.fromisoformat(market.close_time.replace("Z", "+00:00")) for market in markets]
+#      return int(max(market_end_times).timestamp())
+
+
+def get_end_ts() -> int:
+    return int(datetime.now(timezone.utc).timestamp())
