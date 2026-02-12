@@ -1,1 +1,1 @@
-from .models import Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList, Event, EventsResponse, EventResponse, MarketCandlestickResponse, Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
+from .models import Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList, Event, EventsResponse, EventResponse, MarketCandlestickResponse, Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse, UnwrappedCandlestick

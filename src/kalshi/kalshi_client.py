@@ -1,7 +1,7 @@
 import requests
-from .models import MarketCandlestickResponse, Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList,EventsResponse, Event, EventResponse,  Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
+from .models import UnwrappedCandlestick, MarketCandlestickResponse, Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList,EventsResponse, Event, EventResponse,  Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
 from ..trading_constants import DEFAULT_TIMEFRAME
-from ..utils import pydantic_model_to_dataframe, iso_to_unix, get_end_ts, get_start_ts
+from ..utils import pydantic_model_to_dataframe, iso_to_unix, get_end_ts, get_start_ts, unwrap_candlesticks, to_ta_data
 import pandas as pd
 import pandas_ta as ta
 
@@ -243,10 +243,12 @@ if __name__ == '__main__':
 
     first_market:Event = event.markets[0]
     
-    candlesticks:MarketCandlestickResponse = kc.get_market_candle_sticks(series, first_market)
-    candlesticks:list[Candlestick] = candlesticks.candlesticks
-    df = pydantic_model_to_dataframe(candlesticks)
-    df.sort_values(by= "end_period_ts", ascending= True )
+    raw_candlesticks:MarketCandlestickResponse = kc.get_market_candle_sticks(series, first_market)
+    raw_candlesticks:list[Candlestick] = raw_candlesticks.candlesticks
 
+    candlesticks = unwrap_candlesticks(raw_candlesticks) 
+
+    ta_data = to_ta_data(candlesticks, DEFAULT_TIMEFRAME)
+
+    df = pydantic_model_to_dataframe(ta_data)
     print(df)
-  

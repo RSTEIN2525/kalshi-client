@@ -187,6 +187,59 @@ class Candlestick(BaseModel):
     open_interest_fp: str                                    # Contracts bought by end of period (string)
 
 
+
+class UnwrappedCandlestick(BaseModel):
+    '''Flattened Candlestick — all nested OHLC fields prefixed by source for DataFrame use.'''
+    end_period_ts: int                                       # Unix timestamp for inclusive end of period
+
+    # --- YES BID OHLC ---
+    yes_bid_open: int
+    yes_bid_open_dollars: str
+    yes_bid_low: int
+    yes_bid_low_dollars: str
+    yes_bid_high: int
+    yes_bid_high_dollars: str
+    yes_bid_close: int
+    yes_bid_close_dollars: str
+
+    # --- YES ASK OHLC ---
+    # Ask being the prices that sellers want
+    yes_ask_open: int
+    yes_ask_open_dollars: str
+    yes_ask_low: int
+    yes_ask_low_dollars: str
+    yes_ask_high: int
+    yes_ask_high_dollars: str
+    yes_ask_close: int
+    yes_ask_close_dollars: str
+
+    # --- PRICE OHLC (nullable — no trades in period) ---
+    # Bid being the prices that buyers want
+    price_open: Optional[int] = None
+    price_open_dollars: Optional[str] = None
+    price_low: Optional[int] = None
+    price_low_dollars: Optional[str] = None
+    price_high: Optional[int] = None
+    price_high_dollars: Optional[str] = None
+    price_close: Optional[int] = None
+    price_close_dollars: Optional[str] = None
+    price_mean: Optional[int] = None
+    price_mean_dollars: Optional[str] = None
+    price_previous: Optional[int] = None
+    price_previous_dollars: Optional[str] = None
+    price_min: Optional[int] = None
+    price_min_dollars: Optional[str] = None
+    price_max: Optional[int] = None
+    price_max_dollars: Optional[str] = None
+
+    # --- VOLUME / OPEN INTEREST ---
+    volume: int                                              # Contracts bought during period
+    volume_fp: str                                           # Contracts bought during period (string)
+    open_interest: int                                       # Contracts bought by end of period
+    open_interest_fp: str                                    # Contracts bought by end of period (string)
+
+
+
 class EventCandlesticksResponse(BaseModel):
     market_tickers: list[str]                                # Market tickers in the event
     market_candlesticks: list[list[Candlestick]]             # Candlestick arrays, one per market
@@ -200,4 +253,3 @@ class MarketCandlestickResponse(BaseModel):
     ticker: str
     candlesticks: list[Candlestick]
 
-    
