@@ -1,7 +1,8 @@
 import requests
 from .models import UnwrappedCandlestick, MarketCandlestickResponse, Series, PriceRange, MVESelectedLeg, Market, MarketsResponse, TagList, SeriesList,EventsResponse, Event, EventResponse,  Candlestick, CandlestickOHLC, CandlestickPriceOHLC, EventCandlesticksResponse
 from ..trading_constants import DEFAULT_TIMEFRAME
-from ..utils import pydantic_model_to_dataframe, iso_to_unix, get_end_ts, get_start_ts, unwrap_candlesticks, to_ta_data
+from ..utils import pydantic_model_to_dataframe, iso_to_unix, get_end_ts, get_start_ts, unwrap_candlesticks, to_ta_data, plot_rsi
+from ..technical_analysis import crossover, crossunder, const_to_series
 import pandas as pd
 import pandas_ta as ta
 
@@ -228,11 +229,12 @@ if __name__ == '__main__':
     # df = df.sort_values(by='volume', ascending=False)
     # print(df)
 
-    # events = kc.get_events(limit=10)
-    # df = pydantic_model_to_dataframe(events.events)
-    # print(df)
+    events = kc.get_events(limit=100)
+    df = pydantic_model_to_dataframe(events.events)
+    print(df)
 
     # KXELONMARS : Will Elon Musk visit Mars in his lifetime?
+    
 
     event_response: EventResponse = kc.get_event("KXELONMARS-99")
 
@@ -249,6 +251,28 @@ if __name__ == '__main__':
     candlesticks = unwrap_candlesticks(raw_candlesticks) 
 
     ta_data = to_ta_data(candlesticks, DEFAULT_TIMEFRAME)
-
     df = pydantic_model_to_dataframe(ta_data)
-    print(df)
+
+    midline = const_to_series(50,len(df["close"]))
+    rsi = ta.rsi(df["close"], length=7)
+
+    # Add RSI to TA data
+    df["rsi"] = rsi
+    df["buy"] = crossover(df["rsi"], midline)
+    df["sell"] = crossunder(df["rsi"], midline)
+
+
+
+    for i, row in df.iterrows():
+        if row["buy"]:
+            print(f"--BUY-- @{row['close']}")
+        elif row["sell"]:
+            print(f"--SELL-- @{row['close']}")
+
+
+    plot_rsi(df, "RSI Trend")
+
+
+
+    
+    

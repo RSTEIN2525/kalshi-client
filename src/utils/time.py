@@ -18,3 +18,6 @@ def get_start_ts(markets: list[Market]) -> int:
 
 def get_end_ts() -> int:
     return int(datetime.now(timezone.utc).timestamp())
+
+def unix_to_datestr(ts: int, fmt: str = "%d/%m/%Y") -> str:
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime(fmt)
